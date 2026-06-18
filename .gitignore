@@ -1,0 +1,8 @@
+*.wasm
+*.html
+*.a
+*.data
+*.js
+raylib.h
+main
+compile_flags.txt
