@@ -53,6 +53,11 @@ void activateCube(Cube *c);
 bool checkCollision(Cube *c, Sphere *s);
 bool checkCollisionShield(Cube *c, Shield *s);
 
+void ResetCamera(Camera *camera);
+void ResetGameState();
+void ResetObjects();
+void ResetCubes(GlobalState *state);
+
 GameActiveState *gameActiveState;
 Mouse *mouse;
 Cube **cubes;
@@ -69,78 +74,74 @@ Shader shieldShader;
 
 Sphere *sphere;
 
-void InitCamera(GlobalState *state) {
+
+void InitGame(GlobalState *state) {
     Camera *camera = malloc(sizeof(Camera));
+    ResetCamera(camera);
+    state->camera = camera;
+
+    triangleShader = LoadShader(0, "shaders/triangle.fs");
+    triangleColorLoc = GetShaderLocation(triangleShader, "ourColor");
+    cubeShader = LoadShader(0, "shaders/cube.fs");
+    cubeColorLoc = GetShaderLocation(cubeShader, "ourColor");
+
+    gameActiveState = malloc(sizeof(GameActiveState));
+    ResetGameState();
+    
+    mouse = malloc(sizeof(Mouse));
+    sphere = malloc(sizeof(Sphere));
+    triangle = malloc(sizeof(Triangle));
+    shield = malloc(sizeof(Shield));
+    ResetObjects();
+
+    cubes = malloc(sizeof(Cube*) * gameActiveState->maxCubes);
+    ResetCubes(state);
+    for (int i = 0; i < gameActiveState->maxCubes; i++) {
+        Cube *c = createCube();
+        cubes[i] = c;
+    }
+}
+
+void ResetGame(GlobalState *state) {
+    ResetCamera(state->camera);
+    ResetGameState();
+    ResetObjects();
+    ResetCubes(state);
+}
+
+void ResetCamera(Camera *camera) {
     camera->position = (Vector3){0.0f, 0.0f, 15.0f};
     camera->target = (Vector3){0.0f, 0.0f, 0.0f};
     camera->up = (Vector3){0.0f, 1.0f, 0.0f};
     camera->fovy = 60.0f;
     camera->projection = CAMERA_PERSPECTIVE;
-    state->camera = camera;
 }
 
-void initShaders() {
-    triangleShader = LoadShader(0, "shaders/triangle.fs");
-    triangleColorLoc = GetShaderLocation(triangleShader, "ourColor");
-    cubeShader = LoadShader(0, "shaders/cube.fs");
-    cubeColorLoc = GetShaderLocation(cubeShader, "ourColor");
-}
-
-void InitGameActiveState() {
-    gameActiveState = malloc(sizeof(GameActiveState));
+void ResetGameState() {
     gameActiveState->playerLives = 5;
-    InitObjects();
-    initShaders();
 }
 
-void InitObjects() {
-    mouse = malloc(sizeof(Mouse));
+void ResetObjects() {
     mouse->position = GetMousePosition();
     mouse->position = (Vector2){mouse->position.x - (GetScreenWidth() / 2.0f), mouse->position.y - (GetScreenHeight() / 2.0f)};
 
-    sphere = malloc(sizeof(Sphere));
     sphere->center = (Vector3){0.0f, 0.0f, 0.0f};
     sphere->radius = 5.0f;
-
-    triangle = malloc(sizeof(Triangle));
 
     triangle->position = (Vector2){0.0f, 0.0f};
     triangle->top = (Vector2){2, 0};
     triangle->bRight = (Vector2){-1, 1};
     triangle->bLeft = (Vector2){-1, -1};
 
-
-    shield = malloc(sizeof(Shield));
     shield->size = PI / 3; 
 }
 
-void InitCubes(GlobalState *state) {
+void ResetCubes(GlobalState *state) {
     gameActiveState->cubesRemaining = 5 + (int)(state->difficulty / 2);
     gameActiveState->maxCubes = 10;
     gameActiveState->cubeSpawnTimer = 60 - (int)(state->difficulty / 2);
     gameActiveState->baseCubeSpeed = 0.2f; 
-    cubes = malloc(sizeof(Cube*) * gameActiveState->maxCubes);
-    for (int i = 0; i < gameActiveState->maxCubes; i++) {
-        Cube *c = createCube();
-        cubes[i] = c;
-    }
     gameActiveState->numCubes = 0;
-}
-
-
-void DestroyObjects(GlobalState *state) {
-    free(mouse);
-    for (int i = 0; i < gameActiveState->maxCubes; i++) {
-        free(cubes[i]);
-    }
-    free(cubes);
-    free(sphere);
-    free(triangle);
-    free(gameActiveState);
-    free(state->camera);
-
-    UnloadShader(triangleShader);
-    UnloadShader(cubeShader);
 }
 
 void activateCube(Cube *cube) {

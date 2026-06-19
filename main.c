@@ -3,111 +3,62 @@
 #include "game.h"
 #include "raylib.h"
 #include "stdlib.h"
-
-#if defined(PLATFORM_WEB)
-#include "emscripten/emscripten.h"
+#include "emscripten.h"
 
 EM_JS(void, send_ready, (), { window.parent.postMessage({op : "ready"}); });
 
 EM_JS(void, send_started, (char *verb),
-      { window.parent.postMessage({op : "started", verb : verb}); });
+        { window.parent.postMessage({op : "started", verb : verb}); });
 
 EM_JS(void, send_done, (bool win),
-      { window.parent.postMessage({op : "done", win : win}); });
-EM_JS(int, poll_start, (), {
-  if (window.lcolonqJamStart) {
-    return window.lcolonqJamStart;
-  }
-  return 0;
-});
-#else
-int gameDifficulty;
-#endif
+        { window.parent.postMessage({op : "done", win : win}); });
 
-void initGame(GlobalState *state);
+EM_JS(int, get_difficulty, (), {
+    return window.lcolonqJamStart || -1.0;
+});
+
 void UpdateDrawFrame(void *state);
 Vector2 GetRandomPosition();
 
+
 int main(int argc, char *argv[]) {
 
-  SetConfigFlags(FLAG_MSAA_4X_HINT);
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
 
-  InitWindow(240, 160, "Blargg!");
+    InitWindow(240, 160, "Blargg!");
+    SetTargetFPS(60);
 
-  GlobalState *state = malloc(sizeof(GlobalState));
-  initGame(state);
+    GlobalState *state = malloc(sizeof(GlobalState));
+    state->gameState = READY;
+    state->difficulty = 0;
+    state->win = false;
+    InitGame(state);
 
-  SetTargetFPS(60);
+    send_ready();
 
-#if defined(PLATFORM_WEB)
-  emscripten_set_main_loop_arg(UpdateDrawFrame, state, 60, 1);
-#else
-
-  if (argc >= 2) {
-    char *raw_diff = argv[1];
-    state->difficulty = atoi(raw_diff);
-  } else {
-    state->difficulty = 5;
-  }
-
-  while (!WindowShouldClose()) {
-    if (state->gameState == DONE)
-      break;
-    UpdateDrawFrame(state);
-  }
-
-#endif
-  free(state);
-  CloseWindow();
-  return 0;
-}
-
-void initGame(GlobalState *state) {
-  state->gameState = READY;
-  state->difficulty = 0;
-  state->win = false;
-  InitCamera(state);
-  InitGameActiveState();
-}
-
-void startGame(GlobalState *state) {
-  state->gameState = ACTIVE;
-#if defined(PLATFORM_WEB)
-  send_started("Spin to Defend!");
-  printf("Sent Start Message!...Spin to Defend!\n");
-#endif
-}
-
-void UpdateDrawFrame(void *state) {
-  GlobalState *gState = (GlobalState *)state;
-
-  if (gState->gameState == READY) {
-#if defined(PLATFORM_WEB)
-    gState->difficulty = poll_start();
-    if (gState->difficulty > 0) {
-      InitCubes(state);
-      startGame(gState);
-    } else {
-      return;
+    bool started = false;
+    while (!WindowShouldClose()) {
+        double difficulty = get_difficulty();
+        if (!started) {
+            if (difficulty > 0.0) {
+                started = true;
+                state->gameState = ACTIVE;
+                send_started("Spin to Defend!");
+                printf("Sent Start Message!\n");
+            }
+        } else {
+            if (state->gameState == DONE) {
+                printf("Sent Done Message!...win = %s\n",
+                        state->win == true ? "true" : "false");
+                started = false;
+                state->gameState = READY;
+                ResetGame(state);
+                send_done(state->win);
+            }
+            UpdateGame(state, GetFrameTime());
+            DrawGame(state);
+        }
     }
-#else
-    InitCubes(state);
-    startGame(state);
-#endif
-  }
-
-  if (gState->gameState == DONE) {
-#if defined(PLATFORM_WEB)
-    printf("Sent Done Message!...win = %s\n",
-           gState->win == true ? "true" : "false");
-    send_done(gState->win);
-    DestroyObjects(state);
-    initGame(state);
-#endif
-    return;
-  }
-
-  UpdateGame(gState, GetFrameTime());
-  DrawGame(gState);
-  return;
+    return 0;
 }
+

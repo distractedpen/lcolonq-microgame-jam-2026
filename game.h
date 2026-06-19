@@ -17,11 +17,12 @@ typedef struct GlobalState {
 
 void UpdateGame(GlobalState *state, float dt);
 void DrawGame(GlobalState *state);
-void InitCamera(GlobalState *state);
-void InitObjects();
-void InitCubes(GlobalState *state);
+
+void InitGame(GlobalState *state);
+
 void DestroyObjects(GlobalState *state);
-void InitGameActiveState();
+
+void ResetGame(GlobalState *state);
 
 #endif // GAME_H
 
