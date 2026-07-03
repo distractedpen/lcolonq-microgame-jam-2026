@@ -57,6 +57,12 @@ void ResetCamera(Camera *camera);
 void ResetGameState();
 void ResetObjects();
 void ResetCubes(GlobalState *state);
+void InitSounds();
+
+Sound blockSound;
+Sound hitSound;
+Sound winSound;
+Sound loseSound;
 
 GameActiveState *gameActiveState;
 Mouse *mouse;
@@ -100,6 +106,15 @@ void InitGame(GlobalState *state) {
         Cube *c = createCube();
         cubes[i] = c;
     }
+
+    InitSounds();
+}
+
+void InitSounds() {
+    blockSound = LoadSound("sounds/block.ogg");
+    hitSound = LoadSound("sounds/hit.ogg");
+    winSound = LoadSound("sounds/win.ogg");
+    loseSound = LoadSound("sounds/lose.ogg");
 }
 
 void ResetGame(GlobalState *state) {
@@ -181,25 +196,29 @@ Vector2 swapComponents(Vector2 v) {
 
 void updateTriangleShader() {
     double timeValue = GetTime();
-    float greenValue = (sin(timeValue) / 2.0f) + 0.5f;
-    Vector4 ourColor = {0, greenValue, 0, 1.0f};
+    float greenValue = sin(timeValue) + 0.5f;
+    float blueValue = -1 * (sin(timeValue) + 0.5f);
+    Vector4 ourColor = {0, greenValue, blueValue, 1.0f};
     SetShaderValue(triangleShader, triangleColorLoc, &ourColor, SHADER_UNIFORM_VEC4);
 }
 
 void updateCubeShader() {
     double timeValue = GetTime();
-    float redValue = -1 * ((sin(timeValue) / 2.0f) + 0.5f);
-    Vector4 ourColor = {redValue, 0, 0, 1.0f};
+    float redValue = sin(timeValue) + 0.5f;
+    float blueValue = -1 * (sin(timeValue) + 0.5f);
+    Vector4 ourColor = {redValue, 0, blueValue, 1.0f};
     SetShaderValue(cubeShader, cubeColorLoc, &ourColor, SHADER_UNIFORM_VEC4);
 }
 
 
 void UpdateGame(GlobalState *gState, float dt) {
     if (gameActiveState->cubesRemaining == 0) {
+        if (!IsSoundPlaying(winSound)) PlaySound(winSound);
         gState->win = true;
         gState->gameState = DONE;
         return;
     } else if (gameActiveState->playerLives == 0) {
+        if (!IsSoundPlaying(loseSound)) PlaySound(loseSound);
         gState->win = false;
         gState->gameState = DONE;
         return;
@@ -233,11 +252,13 @@ void UpdateGame(GlobalState *gState, float dt) {
         Cube *c = cubes[i];
         if (c->active) {
             if (checkCollisionShield(c, shield)) {
+                if (!IsSoundPlaying(blockSound)) PlaySound(blockSound);
                 c->active = false;
                 gameActiveState->numCubes--;
                 gameActiveState->cubesRemaining--;
             }
             if (checkCollision(c, sphere)) {
+                if (!IsSoundPlaying(hitSound)) PlaySound(hitSound);
                 c->active = false;
                 gameActiveState->numCubes--;
                 gameActiveState->playerLives--;
@@ -320,12 +341,12 @@ bool checkCollision(Cube *c, Sphere *s) {
 bool checkCollisionShield(Cube *c, Shield *s) {
     return CheckCollisionLines(
             (Vector2) {
-                c->position.x - 0.25f,
-                c->position.y - 0.25f
+                c->position.x - 0.5f,
+                c->position.y - 0.5f
             }, // Cube Diagonal start
             (Vector2) {
-                c->position.x + 0.25f,
-                c->position.y + 0.25f
+                c->position.x + 0.5f,
+                c->position.y + 0.5f
             }, // Cube Diagonal end
             s->startingPos,
             s->endingPos,

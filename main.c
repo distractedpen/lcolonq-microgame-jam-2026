@@ -20,12 +20,12 @@ EM_JS(int, get_difficulty, (), {
 void UpdateDrawFrame(void *state);
 Vector2 GetRandomPosition();
 
-
 int main(int argc, char *argv[]) {
 
     SetConfigFlags(FLAG_MSAA_4X_HINT);
 
     InitWindow(240, 160, "Blargg!");
+    InitAudioDevice();
     SetTargetFPS(60);
 
     GlobalState *state = malloc(sizeof(GlobalState));
@@ -59,6 +59,9 @@ int main(int argc, char *argv[]) {
             DrawGame(state);
         }
     }
+
+    CloseAudioDevice();
+    CloseWindow();
     return 0;
 }
 
