@@ -1,21 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "emscripten/em_asm.h"
 #include "game.h"
 #include "raylib.h"
 #include "stdlib.h"
 #include "emscripten.h"
-
-EM_JS(void, send_ready, (), { window.parent.postMessage({op : "ready"}); });
-
-EM_JS(void, send_started, (char *verb),
-        { window.parent.postMessage({op : "started", verb : verb}); });
-
-EM_JS(void, send_done, (bool win),
-        { window.parent.postMessage({op : "done", win : win}); });
-
-EM_JS(int, get_difficulty, (), {
-    return window.lcolonqJamStart || -1.0;
-});
 
 void UpdateDrawFrame(void *state);
 Vector2 GetRandomPosition();
@@ -34,16 +23,16 @@ int main(int argc, char *argv[]) {
     state->win = false;
     InitGame(state);
 
-    send_ready();
+    emscripten_run_script("window.parent.postMessage({op: \"ready\"})");
 
     bool started = false;
     while (!WindowShouldClose()) {
-        double difficulty = get_difficulty();
+        double difficulty = EM_ASM_DOUBLE({return window.lcolonqJamStart || -1.0;}); 
         if (!started) {
             if (difficulty > 0.0) {
                 started = true;
                 state->gameState = ACTIVE;
-                send_started("Spin to Defend!");
+                emscripten_run_script("window.parent.postMessage({op: \"started\", verb: \"Spin to Defend!\"})");
                 printf("Sent Start Message!\n");
             }
         } else {
@@ -53,7 +42,11 @@ int main(int argc, char *argv[]) {
                 started = false;
                 state->gameState = READY;
                 ResetGame(state);
-                send_done(state->win);
+                if (state->win) {
+                    emscripten_run_script("window.parent.postMessage({op: \"done\", win: true})");
+                } else {
+                    emscripten_run_script("window.parent.postMessage({op: \"done\", win: false})");
+                }
             }
             UpdateGame(state, GetFrameTime());
             DrawGame(state);
